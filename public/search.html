@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Library Book Management - Search Books</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Library Book Management</h1>
+            <nav>
+                <a href="/" class="nav-link">Add Book</a>
+                <a href="/search" class="nav-link active">Search Books</a>
+            </nav>
+        </header>
+
+        <main>
+            <section class="search-section">
+                <h2>Search Books</h2>
+                <form id="searchForm" class="search-form">
+                    <div class="search-criteria">
+                        <div class="form-group">
+                            <label for="searchTitle">Search by Title</label>
+                            <input
+                                type="text"
+                                id="searchTitle"
+                                name="searchTitle"
+                                placeholder="Enter book title to search"
+                            />
+                        </div>
+
+                        <div class="form-group">
+                            <label for="searchAuthor">Search by Author</label>
+                            <input
+                                type="text"
+                                id="searchAuthor"
+                                name="searchAuthor"
+                                placeholder="Enter author name to search"
+                            />
+                        </div>
+
+                        <div class="form-group">
+                            <label for="searchISBN">Search by ISBN</label>
+                            <input
+                                type="text"
+                                id="searchISBN"
+                                name="searchISBN"
+                                placeholder="Enter ISBN to search"
+                            />
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Search</button>
+                </form>
+
+                <div id="searchResults" class="search-results hidden">
+                    <div id="noResultsMessage" class="no-results-message hidden">
+                        <p>No books found matching your search</p>
+                    </div>
+
+                    <div id="resultsTableContainer" class="results-table-container hidden">
+                        <h3>Search Results (<span id="resultCount">0</span> books)</h3>
+                        <table class="results-table">
+                            <thead>
+                                <tr>
+                                    <th>Book ID</th>
+                                    <th>Title</th>
+                                    <th>Author</th>
+                                    <th>ISBN</th>
+                                    <th>Rating</th>
+                                    <th>Reviews</th>
+                                </tr>
+                            </thead>
+                            <tbody id="resultsTableBody">
+                                <!-- Results rows will be inserted here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2026 Library Book Management System</p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
