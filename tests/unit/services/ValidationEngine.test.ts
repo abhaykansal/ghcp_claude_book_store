@@ -187,20 +187,17 @@ describe('ValidationEngine', () => {
       expect(isbnErrors).toHaveLength(0);
     });
 
-    it('should reject ISBN with incorrect check digit', () => {
-      // Change the last digit of a valid ISBN-13
-      const result = engine.validateBook({ ...validBook, isbn: '9780132350885' }); // Last digit wrong
+    it('should accept a 13-digit ISBN even with a non-matching check digit (no checksum enforced)', () => {
+      // Per VALIDATION_RULES.md, checksum correctness is not required.
+      const result = engine.validateBook({ ...validBook, isbn: '9780132350885' }); // Last digit "wrong"
       const isbnErrors = result.errors.filter((e) => e.field === 'isbn');
-      expect(isbnErrors).toHaveLength(1);
-      expect(isbnErrors[0].message).toBe(ErrorMessages.ISBN_INVALID_FORMAT);
+      expect(isbnErrors).toHaveLength(0);
     });
 
-    it('should reject ISBN-10 with incorrect check digit', () => {
-      // 0132350881 (wrong checksum for 0132350882)
+    it('should accept a 10-digit ISBN even with a non-matching check digit (no checksum enforced)', () => {
       const result = engine.validateBook({ ...validBook, isbn: '0132350881' });
       const isbnErrors = result.errors.filter((e) => e.field === 'isbn');
-      expect(isbnErrors).toHaveLength(1);
-      expect(isbnErrors[0].message).toBe(ErrorMessages.ISBN_INVALID_FORMAT);
+      expect(isbnErrors).toHaveLength(0);
     });
 
     it('should reject ISBN that is not 10 or 13 digits', () => {

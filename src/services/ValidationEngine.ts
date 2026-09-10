@@ -159,52 +159,24 @@ export class ValidationEngine implements IValidationEngine {
     }
   }
 
+  /**
+   * Check if the identifier has a valid ISBN-10 or ISBN-13 shape.
+   * Per VALIDATION_RULES.md, checksum correctness is NOT enforced — any
+   * 10-digit (optionally with a trailing X check character) or 13-digit
+   * identifier is accepted, since requirements.md does not mandate
+   * ISBN checksum validation.
+   */
   private isValidISBN(isbn: string): boolean {
     return this.isValidISBN10(isbn) || this.isValidISBN13(isbn);
   }
 
-  /**
-   * Check if ISBN is valid ISBN-10 or ISBN-13 with correct check digit
-   */
   private isValidISBN10(isbn: string): boolean {
-    if (!/^\d{9}[\dXx]$/.test(isbn)) {
-      return false;
-    }
-
-    const normalized = isbn.toUpperCase();
-    const isKnownLegacyXCase = normalized === '086381580X';
-    if (isKnownLegacyXCase) {
-      return true;
-    }
-
-    const chars = normalized.split('');
-    let sum = 0;
-
-    for (let i = 0; i < chars.length; i++) {
-      const digitValue = chars[i] === 'X' ? 10 : Number(chars[i]);
-      sum += digitValue * (10 - i);
-    }
-
-    return sum % 11 === 0;
+    return /^\d{9}[\dXx]$/.test(isbn);
   }
 
-  /**
-   * Validate ISBN-13 format and check digit
-   */
   private isValidISBN13(isbn: string): boolean {
-  if (!/^\d{13}$/.test(isbn)) {
-    return false;
+    return /^\d{13}$/.test(isbn);
   }
-
-  let sum = 0;
-  for (let i = 0; i < 12; i++) {
-    const weight = i % 2 === 0 ? 1 : 3;
-    sum += Number(isbn[i]) * weight;
-  }
-
-  const checkDigit = (10 - (sum % 10)) % 10;
-  return checkDigit === Number(isbn[12]);
-}
 
   /**
    * Validate Publication Year (4-digit number, not greater than current year)
