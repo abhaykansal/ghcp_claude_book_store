@@ -10,6 +10,7 @@ import {
   DuplicateIsbnException,
   PersistenceException,
   SearchException,
+  BookNotFoundException,
 } from '../services/BookService';
 import { ErrorMessages } from '../constants/ErrorMessages';
 import { Logger } from '../logger/Logger';
@@ -30,6 +31,8 @@ export class BookController {
     this.router.post('/books', this.addBook.bind(this));
     this.router.get('/books/search', this.searchBooks.bind(this));
     this.router.get('/books/genres', this.getGenres.bind(this));
+    this.router.post('/books/:isbn/reviews', this.addReview.bind(this));
+    this.router.get('/books/:isbn/reviews', this.getReviews.bind(this));
   }
 
   private async searchBooks(req: Request, res: Response, _next: NextFunction): Promise<void> {
@@ -120,6 +123,72 @@ export class BookController {
         res.status(500).json({
           success: false,
           message: ErrorMessages.UNABLE_TO_SAVE,
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          message: ErrorMessages.SERVER_ERROR,
+        });
+      }
+    }
+  }
+
+  private async addReview(req: Request, res: Response, _next: NextFunction): Promise<void> {
+    try {
+      const { isbn } = req.params;
+      const { rating, reviewText } = req.body ?? {};
+
+      this.logger.info('Add review request', { isbn });
+
+      const response = await this.bookService.addReview(isbn, rating, reviewText);
+      res.status(201).json(response);
+    } catch (error) {
+      this.logger.error('Error in add review endpoint', error);
+
+      if (error instanceof ValidationException) {
+        res.status(400).json({
+          success: false,
+          errors: error.validationErrors,
+        });
+      } else if (error instanceof BookNotFoundException) {
+        res.status(404).json({
+          success: false,
+          message: ErrorMessages.BOOK_NOT_FOUND,
+        });
+      } else if (error instanceof PersistenceException) {
+        res.status(500).json({
+          success: false,
+          message: ErrorMessages.UNABLE_TO_SAVE_REVIEW,
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          message: ErrorMessages.SERVER_ERROR,
+        });
+      }
+    }
+  }
+
+  private async getReviews(req: Request, res: Response, _next: NextFunction): Promise<void> {
+    try {
+      const { isbn } = req.params;
+
+      this.logger.info('Get reviews request', { isbn });
+
+      const response = await this.bookService.getReviewsForBook(isbn);
+      res.status(200).json(response);
+    } catch (error) {
+      this.logger.error('Error in get reviews endpoint', error);
+
+      if (error instanceof BookNotFoundException) {
+        res.status(404).json({
+          success: false,
+          message: ErrorMessages.BOOK_NOT_FOUND,
+        });
+      } else if (error instanceof PersistenceException) {
+        res.status(500).json({
+          success: false,
+          message: ErrorMessages.UNABLE_TO_READ_REVIEWS,
         });
       } else {
         res.status(500).json({

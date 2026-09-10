@@ -9,10 +9,11 @@ import { BookController } from '../../src/controllers/BookController';
 import { BookService } from '../../src/services/BookService';
 import { ValidationService } from '../../src/services/ValidationService';
 import { SearchEngine } from '../../src/services/SearchEngine';
-import { Book } from '../../src/models/Book';
+import { Book, Review } from '../../src/models/Book';
 import { IPersistence } from '../../src/persistence/ExcelPersistence';
 
 class MockPersistence implements IPersistence {
+  private reviews: Review[] = [];
   private books: Book[] = [
     {
       bookId: 'test-1',
@@ -59,6 +60,22 @@ class MockPersistence implements IPersistence {
   generateBookId(): string {
     return `book-${Date.now()}`;
   }
+
+  async addReview(isbn: string, rating: number, reviewText: string): Promise<Review> {
+    const review: Review = {
+      reviewId: `review-${this.reviews.length}`,
+      isbn,
+      rating,
+      reviewText,
+      dateAdded: new Date().toISOString(),
+    };
+    this.reviews.push(review);
+    return review;
+  }
+
+  async getReviewsByIsbn(isbn: string): Promise<Review[]> {
+    return this.reviews.filter((r) => r.isbn === isbn);
+  }
 }
 
 describe('Book API Endpoints', () => {
@@ -74,7 +91,7 @@ describe('Book API Endpoints', () => {
     mockPersistence = new MockPersistence();
     const validationService = new ValidationService();
     const searchEngine = new SearchEngine();
-    const bookService = new BookService(validationService, searchEngine, mockPersistence);
+    const bookService = new BookService(validationService as any, searchEngine, mockPersistence);
 
     // Setup controller
     const bookController = new BookController(bookService);

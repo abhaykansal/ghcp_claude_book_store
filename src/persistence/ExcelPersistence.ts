@@ -7,7 +7,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import ExcelJS from 'exceljs';
-import { Book, DuplicateIsbnException } from '../models/Book';
+import { Book, DuplicateIsbnException, Review } from '../models/Book';
 import { Logger } from '../logger/Logger';
 
 export interface IPersistence {
@@ -15,6 +15,8 @@ export interface IPersistence {
   addBook(bookName: string, authorName: string, isbn: string): Promise<Book>;
   getAllBooks(): Promise<Book[]>;
   generateBookId(): string;
+  addReview(isbn: string, rating: number, reviewText: string): Promise<Review>;
+  getReviewsByIsbn(isbn: string): Promise<Review[]>;
 }
 
 const HEADERS = [
@@ -27,6 +29,9 @@ const HEADERS = [
   'totalCopies',
   'availableCopies',
 ];
+
+const REVIEWS_SHEET_NAME = 'Reviews';
+const REVIEW_HEADERS = ['reviewId', 'isbn', 'rating', 'reviewText', 'dateAdded'];
 
 const normalizeIsbn = (isbn: string): string => isbn.replace(/[\s-]/g, '').toUpperCase();
 
@@ -271,5 +276,105 @@ export class ExcelPersistence implements IPersistence {
 
   generateBookId(): string {
     return uuidv4();
+  }
+
+  async addReview(isbn: string, rating: number, reviewText: string): Promise<Review> {
+    const review: Review = {
+      reviewId: uuidv4(),
+      isbn: isbn.trim(),
+      rating,
+      reviewText: reviewText.trim(),
+      dateAdded: new Date().toISOString(),
+    };
+
+    return new Promise((resolve, reject) => {
+      const writeOp = async (): Promise<void> => {
+        try {
+          const workbook = new ExcelJS.Workbook();
+
+          if (fs.existsSync(this.filePath)) {
+            await workbook.xlsx.readFile(this.filePath);
+          } else {
+            const booksSheet = workbook.addWorksheet('Books');
+            booksSheet.addRow(HEADERS);
+          }
+
+          let reviewsSheet = workbook.getWorksheet(REVIEWS_SHEET_NAME);
+          if (!reviewsSheet) {
+            reviewsSheet = workbook.addWorksheet(REVIEWS_SHEET_NAME);
+            reviewsSheet.addRow(REVIEW_HEADERS);
+          }
+
+          reviewsSheet.addRow([
+            review.reviewId,
+            review.isbn,
+            review.rating,
+            review.reviewText,
+            review.dateAdded,
+          ]);
+
+          await workbook.xlsx.writeFile(this.filePath);
+          this.logger.info('Review added to Excel', { isbn: review.isbn, reviewId: review.reviewId });
+          resolve(review);
+        } catch (error) {
+          this.logger.error('Error adding review to Excel', error);
+          reject(
+            new Error(
+              `Failed to add review: ${error instanceof Error ? error.message : 'Unknown error'}`
+            )
+          );
+        }
+      };
+
+      this.writeQueue.push(writeOp);
+      this.processWriteQueue().catch((err) => {
+        this.logger.error('Error processing write queue', err);
+        reject(err);
+      });
+    });
+  }
+
+  async getReviewsByIsbn(isbn: string): Promise<Review[]> {
+    try {
+      if (!fs.existsSync(this.filePath)) {
+        return [];
+      }
+
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.readFile(this.filePath);
+      const reviewsSheet = workbook.getWorksheet(REVIEWS_SHEET_NAME);
+
+      if (!reviewsSheet) {
+        return [];
+      }
+
+      const normalizedTarget = normalizeIsbn(isbn);
+      const reviews: Review[] = [];
+      let isFirstRow = true;
+
+      reviewsSheet.eachRow((row) => {
+        if (isFirstRow) {
+          isFirstRow = false;
+          return;
+        }
+
+        const reviewId = String(row.getCell(1).value ?? '').trim();
+        const rowIsbn = String(row.getCell(2).value ?? '').trim();
+        const rating = Number(row.getCell(3).value ?? 0);
+        const reviewText = String(row.getCell(4).value ?? '').trim();
+        const dateAdded = String(row.getCell(5).value ?? '').trim();
+
+        if (reviewId && normalizeIsbn(rowIsbn) === normalizedTarget) {
+          reviews.push({ reviewId, isbn: rowIsbn, rating, reviewText, dateAdded });
+        }
+      });
+
+      return reviews;
+    } catch (error) {
+      this.logger.error('Error reading reviews from Excel', error);
+      throw new Error(
+        `Failed to read reviews: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
   }
 }

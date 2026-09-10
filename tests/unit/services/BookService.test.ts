@@ -11,11 +11,12 @@ import {
 } from '../../../src/services/BookService';
 import { ValidationService } from '../../../src/services/ValidationService';
 import { SearchEngine } from '../../../src/services/SearchEngine';
-import { Book, AddBookRequest } from '../../../src/models/Book';
+import { Book, AddBookRequest, Review } from '../../../src/models/Book';
 import { IPersistence } from '../../../src/persistence/ExcelPersistence';
 
 class MockPersistence implements IPersistence {
   private books: Book[] = [];
+  private reviews: Review[] = [];
 
   async addBook(bookInput: Book | string, author?: string, isbn?: string): Promise<Book> {
     const title = typeof bookInput === 'string' ? bookInput : bookInput.title;
@@ -47,8 +48,25 @@ class MockPersistence implements IPersistence {
     return `test-${Math.random()}`;
   }
 
+  async addReview(isbn: string, rating: number, reviewText: string): Promise<Review> {
+    const review: Review = {
+      reviewId: `review-${this.reviews.length}`,
+      isbn,
+      rating,
+      reviewText,
+      dateAdded: new Date().toISOString(),
+    };
+    this.reviews.push(review);
+    return review;
+  }
+
+  async getReviewsByIsbn(isbn: string): Promise<Review[]> {
+    return this.reviews.filter((r) => r.isbn === isbn);
+  }
+
   reset(): void {
     this.books = [];
+    this.reviews = [];
   }
 }
 
@@ -62,7 +80,7 @@ describe('BookService', () => {
     mockPersistence = new MockPersistence();
     validationService = new ValidationService();
     searchEngine = new SearchEngine();
-    bookService = new BookService(validationService, searchEngine, mockPersistence);
+    bookService = new BookService(validationService as any, searchEngine, mockPersistence);
   });
 
   // ========================================================================
@@ -289,9 +307,15 @@ describe('BookService', () => {
         generateBookId(): string {
           return 'test';
         },
+        async addReview(): Promise<Review> {
+          throw new Error('not used');
+        },
+        async getReviewsByIsbn(): Promise<Review[]> {
+          return [];
+        },
       };
       const failingBookService = new BookService(
-        validationService,
+        validationService as any,
         searchEngine,
         failingPersistence
       );
@@ -333,10 +357,16 @@ describe('BookService', () => {
         generateBookId(): string {
           return 'test';
         },
+        async addReview(): Promise<Review> {
+          throw new Error('not used');
+        },
+        async getReviewsByIsbn(): Promise<Review[]> {
+          return [];
+        },
       };
 
       const failingBookService = new BookService(
-        validationService,
+        validationService as any,
         searchEngine,
         failingPersistence
       );

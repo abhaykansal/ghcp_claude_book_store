@@ -118,3 +118,42 @@ export class SearchException extends Error {
     this.name = 'SearchException';
   }
 }
+
+export class BookNotFoundException extends Error {
+  public readonly isbn: string;
+
+  constructor(isbn: string) {
+    super(`No book found with ISBN ${isbn}`);
+    this.name = 'BookNotFoundException';
+    this.isbn = isbn;
+  }
+}
+
+export interface Review {
+  reviewId: string;
+  isbn: string;
+  rating: number;
+  reviewText: string;
+  dateAdded: string;
+}
+
+export interface AddReviewRequest {
+  rating: number | string;
+  reviewText: string;
+}
+
+export interface AddReviewResponse {
+  success: true;
+  message: string;
+  review: Review;
+  averageRating: number;
+  reviewCount: number;
+}
+
+export interface ReviewsResponse {
+  success: true;
+  isbn: string;
+  averageRating: number;
+  reviewCount: number;
+  reviews: Review[];
+}

@@ -11,3 +11,5 @@ coverage/
 *.swo
 data/books.xlsx
 test-data/
+test-results/
+playwright-report/

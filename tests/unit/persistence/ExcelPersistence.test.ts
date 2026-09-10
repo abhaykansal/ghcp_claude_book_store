@@ -30,10 +30,11 @@ function createMockWorksheet(seedRows: Row[] = []) {
     addRow: jest.fn((row: Row) => {
       rows.push(row);
     }),
-    eachRow: jest.fn((callback: (row: { getCell: (i: number) => { value: unknown } }) => void) => {
+    eachRow: jest.fn((callback: (row: { getCell: (i: number) => { value: unknown }; cellCount: number }) => void) => {
       rows.forEach((row) => {
         callback({
           getCell: (i: number) => ({ value: row[i - 1] }),
+          cellCount: row.length,
         });
       });
     }),
@@ -104,7 +105,18 @@ describe('ExcelPersistence', () => {
   describe('addBook', () => {
     it('should append a new row to an existing Excel file', async () => {
       const workbook = createMockWorkbook({
-        seedRows: [['BookID', 'Title', 'Author', 'ISBN', 'DateAdded']],
+        seedRows: [
+          [
+            'bookName',
+            'authorName',
+            'isbn',
+            'publicationYear',
+            'genre',
+            'publisher',
+            'totalCopies',
+            'availableCopies',
+          ],
+        ],
       });
       MockedWorkbookCtor.mockImplementation(() => workbook);
       mockedFs.existsSync.mockReturnValue(true);
@@ -123,11 +135,14 @@ describe('ExcelPersistence', () => {
       expect(book.dateAdded).toBeDefined();
       expect(workbook.xlsx.readFile).toHaveBeenCalledWith(testFilePath);
       expect(workbook.worksheet.addRow).toHaveBeenCalledWith([
-        book.bookId,
-        book.title,
-        book.author,
+        book.bookName,
+        book.authorName,
         book.isbn,
-        book.dateAdded,
+        book.publicationYear,
+        book.genre,
+        book.publisher,
+        book.totalCopies,
+        book.availableCopies,
       ]);
       expect(workbook.xlsx.writeFile).toHaveBeenCalledWith(testFilePath);
     });
@@ -143,11 +158,14 @@ describe('ExcelPersistence', () => {
 
       expect(workbook.addWorksheet).toHaveBeenCalledWith('Books');
       expect(workbook.worksheet.addRow).toHaveBeenCalledWith([
-        'BookID',
-        'Title',
-        'Author',
-        'ISBN',
-        'DateAdded',
+        'bookName',
+        'authorName',
+        'isbn',
+        'publicationYear',
+        'genre',
+        'publisher',
+        'totalCopies',
+        'availableCopies',
       ]);
     });
 
@@ -266,10 +284,17 @@ describe('ExcelPersistence', () => {
 
       expect(books).toHaveLength(2);
       expect(books[0]).toEqual({
-        bookId: 'id-1',
+        bookName: 'The Great Gatsby',
+        authorName: 'F. Scott Fitzgerald',
+        isbn: '9780743273565',
+        publicationYear: new Date().getFullYear(),
+        genre: 'Other',
+        publisher: 'Unknown Publisher',
+        totalCopies: 1,
+        availableCopies: 1,
         title: 'The Great Gatsby',
         author: 'F. Scott Fitzgerald',
-        isbn: '9780743273565',
+        bookId: 'id-1',
         dateAdded: '2026-01-01T00:00:00.000Z',
       });
       expect(books[1].bookId).toBe('id-2');

@@ -12,7 +12,10 @@ import {
   DuplicateIsbnException,
   PersistenceException,
   SearchException,
+  BookNotFoundException,
   ValidationResult,
+  AddReviewResponse,
+  ReviewsResponse,
 } from '../models/Book';
 import { IValidationEngine } from './ValidationEngine';
 import { ISearchEngine } from './SearchEngine';
@@ -23,6 +26,8 @@ import { ErrorMessages } from '../constants/ErrorMessages';
 export interface IBookService {
   addBook(bookData: Partial<Book> & Partial<AddBookRequest>): Promise<AddBookResponse>;
   searchBooks(searchTerm: string | { type: string; value: string }): Promise<SearchResponse>;
+  addReview(isbn: string, rating: unknown, reviewText: unknown): Promise<AddReviewResponse>;
+  getReviewsForBook(isbn: string): Promise<ReviewsResponse>;
 }
 
 export {
@@ -30,6 +35,15 @@ export {
   DuplicateIsbnException,
   PersistenceException,
   SearchException,
+  BookNotFoundException,
+};
+
+const computeAverageRating = (ratings: number[]): number => {
+  if (ratings.length === 0) {
+    return 0;
+  }
+  const total = ratings.reduce((sum, rating) => sum + rating, 0);
+  return Math.round((total / ratings.length) * 10) / 10;
 };
 
 export class BookService implements IBookService {
@@ -41,11 +55,12 @@ export class BookService implements IBookService {
   constructor(
     validationEngine: IValidationEngine | {
       validateBook: (book: Partial<Book> | Record<string, unknown> | string, author?: string, isbn?: string) => ValidationResult;
+      validateReview?: (rating: unknown, reviewText: unknown) => ValidationResult;
     },
     searchEngine: ISearchEngine,
     persistence: IPersistence
   ) {
-    this.validationEngine = validationEngine;
+    this.validationEngine = validationEngine as IValidationEngine;
     this.searchEngine = searchEngine;
     this.persistence = persistence;
     this.logger = new Logger('BookService', 'info');
@@ -232,6 +247,89 @@ export class BookService implements IBookService {
       this.logger.error('Error searching books', error);
       throw new SearchException(
         `Unable to search at this time: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+  }
+
+  private async getBookByIsbn(isbn: string): Promise<Book> {
+    const books = await this.persistence.getAllBooks();
+    const normalizedTarget = isbn.trim().toLowerCase();
+    const book = books.find((b) => (b.isbn ?? '').toString().trim().toLowerCase() === normalizedTarget);
+
+    if (!book) {
+      throw new BookNotFoundException(isbn);
+    }
+
+    return book;
+  }
+
+  async addReview(isbn: string, rating: unknown, reviewText: unknown): Promise<AddReviewResponse> {
+    const trimmedIsbn = (isbn ?? '').toString().trim();
+
+    this.logger.info('Adding review', { isbn: trimmedIsbn });
+
+    const validation = this.validationEngine.validateReview(rating, reviewText);
+    if (!validation.isValid) {
+      this.logger.warn('Review validation failed', {
+        isbn: trimmedIsbn,
+        errors: validation.errors,
+      });
+      throw new ValidationException(validation.errors);
+    }
+
+    await this.getBookByIsbn(trimmedIsbn);
+
+    const ratingNumber = typeof rating === 'string' ? Number(rating) : (rating as number);
+
+    try {
+      const review = await this.persistence.addReview(trimmedIsbn, ratingNumber, reviewText as string);
+      const reviews = await this.persistence.getReviewsByIsbn(trimmedIsbn);
+      const averageRating = computeAverageRating(reviews.map((r) => r.rating));
+
+      this.logger.info('Review added successfully', {
+        isbn: trimmedIsbn,
+        reviewId: review.reviewId,
+      });
+
+      return {
+        success: true,
+        message: 'Review added successfully',
+        review,
+        averageRating,
+        reviewCount: reviews.length,
+      };
+    } catch (error) {
+      this.logger.error('Unexpected error while adding review', error);
+      throw new PersistenceException(
+        `Unable to save review to the database: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
+      );
+    }
+  }
+
+  async getReviewsForBook(isbn: string): Promise<ReviewsResponse> {
+    const trimmedIsbn = (isbn ?? '').toString().trim();
+
+    await this.getBookByIsbn(trimmedIsbn);
+
+    try {
+      const reviews = await this.persistence.getReviewsByIsbn(trimmedIsbn);
+      const averageRating = computeAverageRating(reviews.map((r) => r.rating));
+
+      return {
+        success: true,
+        isbn: trimmedIsbn,
+        averageRating,
+        reviewCount: reviews.length,
+        reviews,
+      };
+    } catch (error) {
+      this.logger.error('Error reading reviews', error);
+      throw new PersistenceException(
+        `Unable to read reviews from the database: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`
       );
     }
   }

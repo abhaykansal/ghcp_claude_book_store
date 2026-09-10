@@ -212,9 +212,196 @@ function displaySearchResults(data) {
         <td>${escapeHtml(book.title)}</td>
         <td>${escapeHtml(book.author)}</td>
         <td>${escapeHtml(book.isbn)}</td>
+        <td class="rating-cell" id="rating-${escapeHtml(book.isbn)}">Loading...</td>
+        <td>
+          <button type="button" class="btn btn-small btn-secondary" onclick="toggleReviewPanel('${escapeHtml(book.isbn)}')">
+            View/Add Reviews
+          </button>
+        </td>
       `;
       resultsTableBody.appendChild(row);
+
+      const detailRow = document.createElement('tr');
+      detailRow.id = `review-panel-row-${escapeHtml(book.isbn)}`;
+      detailRow.className = 'review-panel-row hidden';
+      detailRow.innerHTML = `
+        <td colspan="6">
+          <div id="review-panel-${escapeHtml(book.isbn)}" class="review-panel"></div>
+        </td>
+      `;
+      resultsTableBody.appendChild(detailRow);
+
+      loadAverageRating(book.isbn);
     });
+  }
+}
+
+// ============================================================================
+// Rating & Review Logic
+// ============================================================================
+
+/**
+ * Load and display the average rating for a book in its results row
+ */
+async function loadAverageRating(isbn) {
+  const ratingCell = document.getElementById(`rating-${isbn}`);
+  if (!ratingCell) return;
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/books/${encodeURIComponent(isbn)}/reviews`);
+    const data = await response.json();
+
+    if (response.ok) {
+      ratingCell.textContent =
+        data.reviewCount > 0 ? `${data.averageRating} ★ (${data.reviewCount})` : 'No ratings yet';
+    } else {
+      ratingCell.textContent = 'N/A';
+    }
+  } catch (error) {
+    console.error('Error loading average rating:', error);
+    ratingCell.textContent = 'N/A';
+  }
+}
+
+/**
+ * Toggle the review panel for a given book (view reviews + submit new review)
+ */
+async function toggleReviewPanel(isbn) {
+  const panelRow = document.getElementById(`review-panel-row-${isbn}`);
+  const panel = document.getElementById(`review-panel-${isbn}`);
+  if (!panelRow || !panel) return;
+
+  const isHidden = panelRow.classList.contains('hidden');
+  if (!isHidden) {
+    panelRow.classList.add('hidden');
+    return;
+  }
+
+  panelRow.classList.remove('hidden');
+  await renderReviewPanel(isbn);
+}
+
+/**
+ * Fetch reviews for a book and render the review list + submission form
+ */
+async function renderReviewPanel(isbn) {
+  const panel = document.getElementById(`review-panel-${isbn}`);
+  if (!panel) return;
+
+  panel.innerHTML = '<p>Loading reviews...</p>';
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/books/${encodeURIComponent(isbn)}/reviews`);
+    const data = await response.json();
+
+    if (!response.ok) {
+      panel.innerHTML = `<p class="review-error">${escapeHtml(data.message || 'Unable to load reviews')}</p>`;
+      return;
+    }
+
+    const reviewsListHtml =
+      data.reviews.length === 0
+        ? '<p class="no-reviews-message">No reviews yet. Be the first to review this book!</p>'
+        : `<ul class="reviews-list">${data.reviews
+            .map(
+              (review) => `
+              <li class="review-item">
+                <span class="review-rating">${'★'.repeat(review.rating)}${'☆'.repeat(5 - review.rating)}</span>
+                <p class="review-text">${escapeHtml(review.reviewText)}</p>
+                <span class="review-date">${escapeHtml(new Date(review.dateAdded).toLocaleDateString())}</span>
+              </li>`
+            )
+            .join('')}</ul>`;
+
+    panel.innerHTML = `
+      <div class="review-summary">
+        <strong>Average Rating:</strong> ${data.reviewCount > 0 ? `${data.averageRating} ★` : 'No ratings yet'}
+        (${data.reviewCount} review${data.reviewCount === 1 ? '' : 's'})
+      </div>
+      ${reviewsListHtml}
+      <form class="review-form" id="review-form-${isbn}">
+        <div class="form-group">
+          <label for="review-rating-${isbn}">Your Rating</label>
+          <select id="review-rating-${isbn}" name="rating" required>
+            <option value="">Select rating</option>
+            <option value="1">1 - Poor</option>
+            <option value="2">2 - Fair</option>
+            <option value="3">3 - Good</option>
+            <option value="4">4 - Very Good</option>
+            <option value="5">5 - Excellent</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="review-text-${isbn}">Your Review</label>
+          <textarea id="review-text-${isbn}" name="reviewText" rows="3" maxlength="2000" placeholder="Share your thoughts about this book" required></textarea>
+        </div>
+        <div id="review-message-${isbn}" class="message-area hidden"></div>
+        <button type="submit" class="btn btn-primary btn-small">Submit Review</button>
+      </form>
+    `;
+
+    const form = document.getElementById(`review-form-${isbn}`);
+    if (form) {
+      form.addEventListener('submit', (event) => handleReviewSubmit(event, isbn));
+    }
+  } catch (error) {
+    console.error('Error loading reviews:', error);
+    panel.innerHTML = '<p class="review-error">Network error. Please try again.</p>';
+  }
+}
+
+/**
+ * Handle review submission form
+ */
+async function handleReviewSubmit(event, isbn) {
+  event.preventDefault();
+
+  const ratingSelect = document.getElementById(`review-rating-${isbn}`);
+  const reviewTextArea = document.getElementById(`review-text-${isbn}`);
+  const messageArea = document.getElementById(`review-message-${isbn}`);
+  const submitBtn = event.target.querySelector('button[type="submit"]');
+
+  const rating = ratingSelect.value;
+  const reviewText = reviewTextArea.value.trim();
+
+  messageArea.classList.add('hidden');
+  messageArea.classList.remove('success', 'error');
+
+  try {
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Submitting...';
+
+    const response = await fetch(`${API_BASE_URL}/books/${encodeURIComponent(isbn)}/reviews`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rating: Number(rating), reviewText }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      await renderReviewPanel(isbn);
+      await loadAverageRating(isbn);
+    } else {
+      messageArea.classList.remove('hidden');
+      messageArea.classList.add('error');
+      if (data.errors && Array.isArray(data.errors)) {
+        const errorMessages = data.errors.map((e) => escapeHtml(e.message)).join('<br>');
+        messageArea.innerHTML = `<p>${errorMessages}</p>`;
+      } else {
+        messageArea.innerHTML = `<p>${escapeHtml(data.message || 'Failed to submit review')}</p>`;
+      }
+    }
+  } catch (error) {
+    console.error('Error submitting review:', error);
+    messageArea.classList.remove('hidden');
+    messageArea.classList.add('error');
+    messageArea.innerHTML = '<p>Network error. Please try again.</p>';
+  } finally {
+    if (document.body.contains(submitBtn)) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Submit Review';
+    }
   }
 }
 

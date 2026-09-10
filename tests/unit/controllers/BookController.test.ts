@@ -44,6 +44,8 @@ describe('BookController (unit, mocked BookService)', () => {
         },
       };
       const mockService: IBookService = {
+        addReview: jest.fn(),
+        getReviewsForBook: jest.fn(),
         addBook: jest.fn().mockResolvedValue(mockResponse),
         searchBooks: jest.fn(),
       };
@@ -67,6 +69,8 @@ describe('BookController (unit, mocked BookService)', () => {
     it('should return 400 with field errors when ValidationException is thrown', async () => {
       const validationErrors = [{ field: 'title', message: 'Title is required' }];
       const mockService: IBookService = {
+        addReview: jest.fn(),
+        getReviewsForBook: jest.fn(),
         addBook: jest.fn().mockRejectedValue(new ValidationException(validationErrors)),
         searchBooks: jest.fn(),
       };
@@ -83,6 +87,8 @@ describe('BookController (unit, mocked BookService)', () => {
 
     it('should return 400 with the duplicate ISBN message when DuplicateIsbnException is thrown', async () => {
       const mockService: IBookService = {
+        addReview: jest.fn(),
+        getReviewsForBook: jest.fn(),
         addBook: jest.fn().mockRejectedValue(new DuplicateIsbnException('9780743273565')),
         searchBooks: jest.fn(),
       };
@@ -101,6 +107,8 @@ describe('BookController (unit, mocked BookService)', () => {
 
     it('should return 500 with UNABLE_TO_SAVE message when PersistenceException is thrown', async () => {
       const mockService: IBookService = {
+        addReview: jest.fn(),
+        getReviewsForBook: jest.fn(),
         addBook: jest.fn().mockRejectedValue(new PersistenceException('DB down')),
         searchBooks: jest.fn(),
       };
@@ -117,6 +125,8 @@ describe('BookController (unit, mocked BookService)', () => {
 
     it('should return 500 with generic SERVER_ERROR message for unexpected errors', async () => {
       const mockService: IBookService = {
+        addReview: jest.fn(),
+        getReviewsForBook: jest.fn(),
         addBook: jest.fn().mockRejectedValue(new Error('Unexpected boom')),
         searchBooks: jest.fn(),
       };
@@ -150,6 +160,8 @@ describe('BookController (unit, mocked BookService)', () => {
         },
       };
       const mockService: IBookService = {
+        addReview: jest.fn(),
+        getReviewsForBook: jest.fn(),
         addBook: jest.fn().mockResolvedValue(mockResponse),
         searchBooks: jest.fn(),
       };
@@ -190,6 +202,8 @@ describe('BookController (unit, mocked BookService)', () => {
         ],
       };
       const mockService: IBookService = {
+        addReview: jest.fn(),
+        getReviewsForBook: jest.fn(),
         addBook: jest.fn(),
         searchBooks: jest.fn().mockResolvedValue(mockResponse),
       };
@@ -209,6 +223,8 @@ describe('BookController (unit, mocked BookService)', () => {
 
     it('should route search by author when only author query param is provided', async () => {
       const mockService: IBookService = {
+        addReview: jest.fn(),
+        getReviewsForBook: jest.fn(),
         addBook: jest.fn(),
         searchBooks: jest.fn().mockResolvedValue({ success: true, count: 0, results: [] }),
       };
@@ -224,6 +240,8 @@ describe('BookController (unit, mocked BookService)', () => {
 
     it('should route search by isbn when only isbn query param is provided', async () => {
       const mockService: IBookService = {
+        addReview: jest.fn(),
+        getReviewsForBook: jest.fn(),
         addBook: jest.fn(),
         searchBooks: jest.fn().mockResolvedValue({ success: true, count: 0, results: [] }),
       };
@@ -239,6 +257,8 @@ describe('BookController (unit, mocked BookService)', () => {
 
     it('should return 400 when no search criteria is provided', async () => {
       const mockService: IBookService = {
+        addReview: jest.fn(),
+        getReviewsForBook: jest.fn(),
         addBook: jest.fn(),
         searchBooks: jest.fn(),
       };
@@ -258,6 +278,8 @@ describe('BookController (unit, mocked BookService)', () => {
       // treated as "no criteria provided" and must NOT be mis-routed to
       // an ISBN search for the literal string "undefined".
       const mockService: IBookService = {
+        addReview: jest.fn(),
+        getReviewsForBook: jest.fn(),
         addBook: jest.fn(),
         searchBooks: jest.fn(),
       };
@@ -277,6 +299,8 @@ describe('BookController (unit, mocked BookService)', () => {
 
     it('should return 500 with UNABLE_TO_SEARCH message when SearchException is thrown', async () => {
       const mockService: IBookService = {
+        addReview: jest.fn(),
+        getReviewsForBook: jest.fn(),
         addBook: jest.fn(),
         searchBooks: jest.fn().mockRejectedValue(new SearchException('Search backend down')),
       };
@@ -293,6 +317,8 @@ describe('BookController (unit, mocked BookService)', () => {
 
     it('should return 500 with generic SERVER_ERROR message for unexpected search errors', async () => {
       const mockService: IBookService = {
+        addReview: jest.fn(),
+        getReviewsForBook: jest.fn(),
         addBook: jest.fn(),
         searchBooks: jest.fn().mockRejectedValue(new Error('Unexpected boom')),
       };
@@ -309,6 +335,8 @@ describe('BookController (unit, mocked BookService)', () => {
 
     it('should return empty results array when no books match', async () => {
       const mockService: IBookService = {
+        addReview: jest.fn(),
+        getReviewsForBook: jest.fn(),
         addBook: jest.fn(),
         searchBooks: jest.fn().mockResolvedValue({ success: true, count: 0, results: [] }),
       };

@@ -19,6 +19,7 @@ import { ErrorMessages } from '../constants/ErrorMessages';
 export interface IValidationEngine {
   validateBook(book: Partial<Book> | Record<string, unknown>): ValidationResult;
   validateBook(title: string, author: string, isbn: string): ValidationResult;
+  validateReview(rating: unknown, reviewText: unknown): ValidationResult;
 }
 
 export class ValidationEngine implements IValidationEngine {
@@ -422,6 +423,45 @@ export class ValidationEngine implements IValidationEngine {
         message: ErrorMessages.AVAILABLE_COPIES_NON_NEGATIVE,
       });
     }
+  }
+
+  /**
+   * Validate a rating/review submission: rating must be a whole number 1-5,
+   * reviewText must be non-blank after trim (SCRUM-10 AC1-AC2).
+   */
+  validateReview(rating: unknown, reviewText: unknown): ValidationResult {
+    const errors: ValidationError[] = [];
+
+    if (rating === null || rating === undefined || rating === '') {
+      errors.push({ field: 'rating', message: ErrorMessages.RATING_REQUIRED });
+    } else {
+      const ratingNumber = typeof rating === 'string' ? Number(rating) : rating;
+      if (
+        typeof ratingNumber !== 'number' ||
+        Number.isNaN(ratingNumber) ||
+        !Number.isInteger(ratingNumber) ||
+        ratingNumber < 1 ||
+        ratingNumber > 5
+      ) {
+        errors.push({ field: 'rating', message: ErrorMessages.RATING_INVALID });
+      }
+    }
+
+    if (reviewText === null || reviewText === undefined || typeof reviewText !== 'string') {
+      errors.push({ field: 'reviewText', message: ErrorMessages.REVIEW_TEXT_REQUIRED });
+    } else {
+      const trimmed = reviewText.trim();
+      if (trimmed.length === 0) {
+        errors.push({ field: 'reviewText', message: ErrorMessages.REVIEW_TEXT_REQUIRED });
+      } else if (trimmed.length > 2000) {
+        errors.push({ field: 'reviewText', message: ErrorMessages.REVIEW_TEXT_MAX_LENGTH });
+      }
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+    };
   }
 
   /**

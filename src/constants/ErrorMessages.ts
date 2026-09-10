@@ -43,6 +43,14 @@ export const ErrorMessages = {
 
   SERVER_ERROR: 'An unexpected error occurred',
 
+  RATING_REQUIRED: 'Rating is required',
+  RATING_INVALID: 'Rating must be a whole number between 1 and 5',
+  REVIEW_TEXT_REQUIRED: 'Review text is required',
+  REVIEW_TEXT_MAX_LENGTH: 'Review text must be 2000 characters or less',
+  BOOK_NOT_FOUND: 'No book found with this ISBN',
+  UNABLE_TO_SAVE_REVIEW: 'Unable to save review to database',
+  UNABLE_TO_READ_REVIEWS: 'Unable to read reviews from database',
+
   // Legacy compatibility aliases used by the older ValidationService tests.
   TITLE_REQUIRED: 'Book name is required',
   TITLE_WHITESPACE_ONLY: 'Book name is required',
